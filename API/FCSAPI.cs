@@ -39,6 +39,7 @@ namespace FCSAPI
             "When stabilityAssist is disabled, this param indicate the yaw stablizer how much yaw control it can use, limited to [0,1] range." +
             "It is set to 0.1f by default")]
         public float yawDamperLimit_Additional;
+        public bool enabled;
     }
 
     public enum AircraftType

@@ -1,4 +1,4 @@
-# NuclearOptionFCSFramework
+# NuclearOptionFCSFrameworkMOD
 这是为游戏 核选项 （Nuclear Option） 开发的BepInEx Mod，用于提供飞控修改API。
 
 本Mod尚处于早期开发阶段。
