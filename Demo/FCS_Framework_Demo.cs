@@ -1,5 +1,6 @@
 ﻿using BepInEx;
 using BepInEx.Configuration;
+using ConfigurationManager;
 using FCSAPI;
 using Newtonsoft.Json;
 using System;
@@ -9,7 +10,7 @@ using System.Linq;
 using System.Text;
 using Unity.Collections;
 using UnityEngine;
-//using ConfigurationManager;
+using UnityEngine.InputSystem;
 namespace FCSSets;
 
 [BepInPlugin("FCS_FrameworkMOD_Demo", "FCS_FrameworkMOD_Demo", "0.0.5")]
@@ -23,13 +24,9 @@ public class FCSSets : BaseUnityPlugin
     private ConfigEntry<KeyboardShortcut> ShowCounter { get; set; }
 
 
-    void Awake()
-    {
-        ShowCounter = Config.Bind("Hotkeys", "Show FPS counter", new KeyboardShortcut(KeyCode.L, KeyCode.LeftControl));
-    }
     void Update()
     {
-        if (done && !ShowCounter.Value.IsDown()) return;
+        if (done && !(Keyboard.current.ctrlKey.wasPressedThisFrame &&Keyboard.current.lKey.wasPressedThisFrame)) return;
         var api = FCSAPI.FCSPatch_API.Instance;
         var VEUapi = FCSAPI.FCSPatch_API.VEU_Instance;
         Logger.LogInfo($"API assembly seen: {typeof(FCSAPI.FCSPatch_API).Assembly.FullName}");
@@ -47,7 +44,7 @@ public class FCSSets : BaseUnityPlugin
             api.SetFCS_Global(LoadedParams["KR67"], AircraftType.KR67);
             api.SetFCS_Global(LoadedParams["EW25"], AircraftType.EW25);
             api.SetFCS_Global(LoadedParams["SFB81"], AircraftType.SFB81);
-            //VEUapi.SetVectoringMaxAirSpeed_Global(AircraftType.FS12, 9999f);
+            //VEUapi.SetVectoringMaxAirSpeed_Global(AircraftType.FS12, api.);
             //VEUapi.SetVectoringMaxAirSpeed_Global(AircraftType.KR67, 9999f);
             done = true;
         }

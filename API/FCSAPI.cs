@@ -40,6 +40,10 @@ namespace FCSAPI
             "It is set to 0.1f by default")]
         public float yawDamperLimit_Additional;
         public bool enabled;
+        public float tvcspeedLimiter;
+        public float tvcPitch;
+        public float tvcYaw;
+        public float tvcRoll;
     }
 
     public enum AircraftType
