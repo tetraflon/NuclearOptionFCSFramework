@@ -3,7 +3,6 @@
   <PropertyGroup>
     <TargetFramework>net472</TargetFramework>
 
-    <AssemblyName>FCSDemo AIO</AssemblyName>
     <OutputType>Library</OutputType>
 
     <!-- Required for BepInEx.AssemblyPublicizer -->
@@ -20,6 +19,7 @@
     <AutoGenerateBindingRedirects>True</AutoGenerateBindingRedirects>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
     <Version>$(VersionPrefix)</Version>
+    <AssemblyName>FCSDemoAIO</AssemblyName>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
@@ -78,7 +78,7 @@
     </Reference>
 
     <Reference Include="UnityEngine">
-      <HintPath>$(ManagedDir)\UnityEngine.dll</HintPath>
+      <HintPath>..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Nuclear Option\NuclearOption_Data\Managed\UnityEngine.dll</HintPath>
     </Reference>
 
     <Reference Include="UnityEngine.CoreModule">
@@ -121,6 +121,9 @@
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="System.Xml" />
     <Reference Include="System.Xml.Linq" />
+    <Reference Include="UnityEngine.InputLegacyModule">
+      <HintPath>..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Nuclear Option\NuclearOption_Data\Managed\UnityEngine.InputLegacyModule.dll</HintPath>
+    </Reference>
     <Reference Include="UnityEngine.InputModule">
       <HintPath>..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Nuclear Option\NuclearOption_Data\Managed\UnityEngine.InputModule.dll</HintPath>
     </Reference>

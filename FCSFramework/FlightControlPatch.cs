@@ -230,6 +230,10 @@ public class FlightControlPatch : BaseUnityPlugin, FCSModifier, VectorEngineUnlo
             {
                 sourceFieldName = f.Name.Replace("_S", "");
             }
+            if (f.Name == "tvcspeedLimiter" || f.Name == "tvcPitch" || f.Name == "tvcYaw" || f.Name == "tvcRoll")
+            {
+                continue;
+            }
             else
             {
                 sourceFieldName = f.Name;
@@ -260,7 +264,7 @@ public class FlightControlPatch : BaseUnityPlugin, FCSModifier, VectorEngineUnlo
     public int SetFCS(FlightControlParam Param, GameObject Target)
     {
         if (!done) throw new InvalidOperationException("NuclearOptionFCSFrameworkMOD API has not been initialized yet.");
-        var FCS = Target.GetComponent<ControlsFilter>();
+        var FCS = Target.GetComponentInChildren<ControlsFilter>();
         if (FCS == null)
         {
             throw new NullReferenceException("Target do not have a FCS Component");
@@ -272,7 +276,7 @@ public class FlightControlPatch : BaseUnityPlugin, FCSModifier, VectorEngineUnlo
     public FlightControlParam GetFCS(GameObject Target)
     {
         if (!done) throw new InvalidOperationException("NuclearOptionFCSFrameworkMOD API has not been initialized yet.");
-        var FCS = Target.GetComponent<ControlsFilter>();
+        var FCS = Target.GetComponentInChildren<ControlsFilter>();
         if (FCS == null)
         {
             throw new NullReferenceException("Target do not have a FCS Component");

@@ -1,16 +1,18 @@
 ﻿using BepInEx;
 using BepInEx.Configuration;
+using BepInEx.Logging;
 using ConfigurationManager;
 using FCSAPI;
+using HarmonyLib;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Text;
 using Unity.Collections;
 using UnityEngine;
-using UnityEngine.InputSystem;
 namespace FCSSets;
 
 [BepInPlugin("FCS_FrameworkMOD_Demo", "FCS_FrameworkMOD_Demo", "0.0.5")]
@@ -26,7 +28,7 @@ public class FCSSets : BaseUnityPlugin
 
     void Update()
     {
-        if (done && !(Keyboard.current.ctrlKey.wasPressedThisFrame &&Keyboard.current.lKey.wasPressedThisFrame)) return;
+        if (done && !(Input.GetKey(KeyCode.LeftControl) && Input.GetKey(KeyCode.L))) return;
         var api = FCSAPI.FCSPatch_API.Instance;
         var VEUapi = FCSAPI.FCSPatch_API.VEU_Instance;
         Logger.LogInfo($"API assembly seen: {typeof(FCSAPI.FCSPatch_API).Assembly.FullName}");
@@ -53,6 +55,69 @@ public class FCSSets : BaseUnityPlugin
             Logger.LogInfo($"Waiting for FCPatch API");
         }
 
+    }
+    public class ModifyHelper : MonoBehaviour
+    {
+        private Aircraft playerAircraft;
+        public void Init(Aircraft ac)
+        {
+            playerAircraft = ac;
+        }
+        void Update()
+        {
+            if (!(Input.GetKey(KeyCode.LeftControl) && Input.GetKey(KeyCode.L))) return;
+            var api = FCSAPI.FCSPatch_API.Instance;
+            LoadConfig();
+            if (playerAircraft.definition.code == "CI-22")
+            {
+                api.SetFCS(LoadedParams["CI22"], playerAircraft.cockpit.gameObject);
+            }
+            else if (playerAircraft.definition.code == "FS-12")
+            {
+                api.SetFCS(LoadedParams["FS12"], playerAircraft.cockpit.gameObject);
+            }
+            else if (playerAircraft.definition.code == "KR-67")
+            {
+                api.SetFCS(LoadedParams["KR67"], playerAircraft.cockpit.gameObject);
+            }
+            else if (playerAircraft.definition.code == "T/A-30")
+            {
+                api.SetFCS(LoadedParams["TA30"], playerAircraft.cockpit.gameObject);
+            }
+            else if (playerAircraft.definition.code == "SFB-81")
+            {
+                api.SetFCS(LoadedParams["SFB81"], playerAircraft.cockpit.gameObject);
+            }
+            else if (playerAircraft.definition.code == "FS-20")
+            {
+                api.SetFCS(LoadedParams["FS20"], playerAircraft.cockpit.gameObject);
+            }
+            else if (playerAircraft.definition.code == "EW-25")
+            {
+                api.SetFCS(LoadedParams["EW25"], playerAircraft.cockpit.gameObject);
+            }
+            else if (playerAircraft.definition.code == "A-19")
+            {
+                api.SetFCS(LoadedParams["A19"], playerAircraft.cockpit.gameObject);
+            }
+        }
+    }
+
+    [HarmonyPatch(typeof(PilotPlayerState))]
+    [HarmonyPatch("FixedUpdateState")]
+    [HarmonyPatch(new Type[] { typeof(Pilot) })]
+    public static class PilotPlayerState_FixedUpdateState_Patch
+    {
+        public static void Prefix(Pilot pilot)
+        {
+            if (GameManager.gameState != GameState.SinglePlayer && GameManager.gameState != GameState.Multiplayer) { return; }
+            if (pilot.aircraft != null && pilot.aircraft.cockpit.GetComponent<ModifyHelper>() == null)
+            {
+                var ret = pilot.aircraft.cockpit.gameObject.AddComponent<ModifyHelper>();
+                ret.Init(pilot.aircraft);
+
+            }
+        }
     }
 
 
