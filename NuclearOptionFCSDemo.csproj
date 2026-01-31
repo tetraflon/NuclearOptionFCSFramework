@@ -45,7 +45,7 @@
 
   <!-- Explicit, filtered references (only real .NET assemblies) -->
   <ItemGroup>
-    <Reference Include="Assembly-CSharp">
+    <Reference Include="Assembly-CSharp" Publicize="true">
       <HintPath>$(ManagedDir)\Assembly-CSharp.dll</HintPath>
     </Reference>
 
@@ -105,11 +105,6 @@
     <Reference Include="0Harmony">
       <HintPath>$(BepInExCore)\0Harmony.dll</HintPath>
     </Reference>
-  </ItemGroup>
-
-  <!-- Publicize ONLY Assembly-CSharp.dll -->
-  <ItemGroup>
-    <Publicize Include="$(ManagedDir)\Assembly-CSharp.dll" />
   </ItemGroup>
 
   <!-- Framework references -->

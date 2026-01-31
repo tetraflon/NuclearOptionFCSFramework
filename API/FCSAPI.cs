@@ -1,25 +1,20 @@
 ﻿using UnityEngine;
-namespace FCSAPI
+namespace NuclearOptionFCSDemo.API
 {
-    public interface FCSModifier
+    public interface IFCSModifier
     {
         FlightControlParam GetFCS(GameObject Target);
-        int SetFCS(FlightControlParam Param, GameObject Target);
+        int SetFCS(FlightControlParam Param, Aircraft Target);
         int SetFCS_Global(FlightControlParam Param, AircraftType Target);
         FlightControlParam GetDefaultFCS(AircraftType Aircraft);
         FlightControlParam GetDefaultFCS(GameObject Target);
         int SetFCSToDefault(GameObject Target);
         bool IsReady();
     }
-    public interface VectorEngineUnlocker
-    {
-        void SetVectoringMaxAirSpeed_Global(AircraftType Aircraft, float vel);
-        void SetVectoringMaxAirSpeed(GameObject Target, float vel);
-    }
     public struct FlightControlParam
     {
-        public float alphaLimiter_S;
-        public float gLimitPositive_S;
+        public float alphaLimiter;
+        public float gLimitPositive;
         public float directControlFactor;
         public float maxPitchAngularVel;
         public float cornerSpeed;
@@ -39,11 +34,18 @@ namespace FCSAPI
             "When stabilityAssist is disabled, this param indicate the yaw stablizer how much yaw control it can use, limited to [0,1] range." +
             "It is set to 0.1f by default")]
         public float yawDamperLimit_Additional;
-        public bool enabled;
-        public float tvcspeedLimiter;
-        public float tvcPitch;
-        public float tvcYaw;
-        public float tvcRoll;
+        public bool enabled = true;
+        public float tvcSpeedLimiter = 340;
+        public float tvcPitch = 0;
+        public float tvcYaw = 0;
+        public float tvcRoll = 0;
+        public float thrustMultiplier = 1;
+        public float liftMultiplier = 1;
+        public bool unBreakableJoint = false;
+
+        public FlightControlParam()
+        {
+        }
     }
 
     public enum AircraftType
@@ -60,7 +62,6 @@ namespace FCSAPI
 
     public static class FCSPatch_API
     {
-        public static FCSModifier Instance;
-        public static VectorEngineUnlocker VEU_Instance;
+        public static IFCSModifier Instance;
     }
 }

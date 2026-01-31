@@ -1,7 +1,7 @@
 ﻿using BepInEx;
-using FCSAPI;
 using HarmonyLib;
 using NuclearOption.DebugScripts;
+using NuclearOptionFCSDemo.API;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.Eventing.Reader;
@@ -11,22 +11,18 @@ using System.Reflection;
 using System.Reflection.Emit;
 using UnityEngine;
 using static UnityEngine.GraphicsBuffer;
-namespace FCPatch;
+namespace NuclearOptionFCSDemo.FCSFramework;
 
 [BepInPlugin("NuclearOptionFCSFrameworkMOD", "FCS_FrameworkMOD", "0.0.5")]
-public class FlightControlPatch : BaseUnityPlugin, FCSModifier, VectorEngineUnlocker
+public class FlightControlPatch : BaseUnityPlugin, IFCSModifier
 {
     private readonly string[] targetPrefabNames =
-    {
+    [
         "Fighter1",
         "engine_R",
         "engine_L",
         "engine",
-    };
-
-    private Turbojet Engine_FS12;
-    private Turbojet Engine_KR67_L;
-    private Turbojet Engine_KR67_R;
+    ];
 
     private Dictionary<string, KeyValuePair<ControlsFilter, FlightControlParam>> FCS_Dict = new Dictionary<string, KeyValuePair<ControlsFilter, FlightControlParam>>();
     private Dictionary<AircraftType, string> knownNamesDict = new Dictionary<AircraftType, string>{
@@ -39,7 +35,18 @@ public class FlightControlPatch : BaseUnityPlugin, FCSModifier, VectorEngineUnlo
         {AircraftType.EW25, "EW-25" },
         {AircraftType.SFB81, "SFB-81" },
     };
-
+    public class SuperWing : MonoBehaviour
+    {
+        public float liftMultiplier = 1.0f;
+    }
+    public class SuperEngine : MonoBehaviour
+    {
+        public float thrustMultiplier = 1.0f;
+    }
+    public class Superturbine : MonoBehaviour
+    {
+        public float thrustMultiplier = 1.0f;
+    }
     private bool done = false;
     void Awake()
     {
@@ -48,8 +55,6 @@ public class FlightControlPatch : BaseUnityPlugin, FCSModifier, VectorEngineUnlo
         Logger.LogInfo("FlyByWire yaw patch applied.");
         FCSPatch_API.Instance = this;
         Logger.LogInfo($"FCS API assigned: {this.GetType().Assembly.FullName}");
-        FCSPatch_API.VEU_Instance = this;
-        Logger.LogInfo($"VectorEngineUnlocker API assigned: {this.GetType().Assembly.FullName}");
     }
     void Update()
     {
@@ -71,54 +76,7 @@ public class FlightControlPatch : BaseUnityPlugin, FCSModifier, VectorEngineUnlo
                 FCS_Dict.Add(aircraft.code, new KeyValuePair<ControlsFilter, FlightControlParam>(tmp, GetFlightControParam(tmp.gameObject)));
             }
         }
-        var allPrefabs = Resources.FindObjectsOfTypeAll<GameObject>();
-        var matchedPrefabs = allPrefabs
-            .Where(go => targetPrefabNames.Any(t => go.name.Equals(t, StringComparison.OrdinalIgnoreCase)))
-            .ToList();
-        if (matchedPrefabs.Count == 0)
-        {
-            Logger.LogInfo("Waiting for target prefabs to load...");
-            return;
-        }
-        foreach (var prefab in matchedPrefabs)
-        {
-            ModifyPrefab(prefab);
-        }
-
-        Logger.LogInfo($"Searched {matchedPrefabs.Count} target prefabs.");
         done = true;
-    }
-
-    private void ModifyPrefab(GameObject prefab)
-    {
-        var turbojet = prefab.GetComponent<Turbojet>();
-        if (turbojet != null)
-        {
-            if (prefab.name == "Fighter1") //FS12的引擎
-            {
-                Logger.LogInfo($"Engine of FS-12 found.");
-                Engine_FS12 = turbojet;
-            }
-            else if (prefab.name == "engine_L" || prefab.name == "engine_R")
-            {
-                //任何具有矢量推进功能的引擎都有一个独特的非零映射向量thrustVectoring，利用该值定位KR的引擎
-                Type jetType = turbojet.GetType();
-                FieldInfo maxvectorspeedField = jetType.GetField("thrustVectoring", BindingFlags.NonPublic | BindingFlags.Instance);
-                if (maxvectorspeedField != null)
-                {
-                    var v = maxvectorspeedField.GetValue(turbojet);
-                    Vector3 known1 = new Vector3(15, 0, 15);
-                    Vector3 known2 = new Vector3(15, 0, -15);
-                    if (v.ToString() == known1.ToString() || v.ToString() == known2.ToString())
-                    {
-                        Logger.LogInfo($"Engine of KR-67 found.");
-                        if (prefab.name == "engine_L") Engine_KR67_L = turbojet;
-                        else Engine_KR67_R = turbojet;
-                    }
-                }
-            }
-        }
-        
     }
 
     private static void applyFlightControParam(FlightControlParam param, ControlsFilter fc)//用于修改飞机飞控参数
@@ -176,15 +134,8 @@ public class FlightControlPatch : BaseUnityPlugin, FCSModifier, VectorEngineUnlo
             Debug.LogError("Cannot find field 'alphaLimiter' in FlyByWire!");
             return;
         }
-        aoaField.SetValue(flyByWireInstance, param.alphaLimiter_S);
-        gField.SetValue(flyByWireInstance, param.gLimitPositive_S);
-    }
-
-    private void SetVector(Turbojet target, float v)
-    {
-        Type jetType = target.GetType();
-        FieldInfo maxvectorspeedField = jetType.GetField("thrustVectoringMaxAirspeed", BindingFlags.NonPublic | BindingFlags.Instance);
-        if (maxvectorspeedField != null) maxvectorspeedField.SetValue(target, v);
+        aoaField.SetValue(flyByWireInstance, param.alphaLimiter);
+        gField.SetValue(flyByWireInstance, param.gLimitPositive);
     }
 
 
@@ -223,14 +174,13 @@ public class FlightControlPatch : BaseUnityPlugin, FCSModifier, VectorEngineUnlo
             string sourceFieldName;
             if (f.Name.Contains("_Additional"))
             {
-
                 continue;
             }
             if (f.Name == "alphaLimiter_S" || f.Name == "gLimitPositive_S")
             {
                 sourceFieldName = f.Name.Replace("_S", "");
             }
-            if (f.Name == "tvcspeedLimiter" || f.Name == "tvcPitch" || f.Name == "tvcYaw" || f.Name == "tvcRoll")
+            if (f.Name == "tvcSpeedLimiter" || f.Name == "tvcPitch" || f.Name == "tvcYaw" || f.Name == "tvcRoll" || f.Name == "thrustMultiplier" ||f.Name == "liftMultiplier" || f.Name == "unBreakableJoint")
             {
                 continue;
             }
@@ -261,16 +211,206 @@ public class FlightControlPatch : BaseUnityPlugin, FCSModifier, VectorEngineUnlo
         return param;
     }
 
-    public int SetFCS(FlightControlParam Param, GameObject Target)
+    public int SetFCS(FlightControlParam Param, Aircraft Target)
     {
         if (!done) throw new InvalidOperationException("NuclearOptionFCSFrameworkMOD API has not been initialized yet.");
-        var FCS = Target.GetComponentInChildren<ControlsFilter>();
+        var FCS = Target.cockpit.gameObject.GetComponentInChildren<ControlsFilter>();
         if (FCS == null)
         {
             throw new NullReferenceException("Target do not have a FCS Component");
         }
         applyFlightControParam(Param, FCS);
+        applyAircraftModParameters(Param, Target);
         return 0;
+    }
+    private void ApplyWingModifiers(FlightControlParam param, UnitPart part)
+    {
+        if (part is not AeroPart aero)
+            return;
+
+        var sw = part.gameObject.GetComponent<SuperWing>();
+
+        if (sw == null)
+        {
+            aero.wingArea *= param.liftMultiplier;
+            sw = part.gameObject.AddComponent<SuperWing>();
+            sw.liftMultiplier = param.liftMultiplier;
+        }
+        else
+        {
+            aero.wingArea /= sw.liftMultiplier;
+            aero.wingArea *= param.liftMultiplier;
+            sw.liftMultiplier = param.liftMultiplier;
+        }
+
+        Logger.LogInfo($"Applied lift multiplier {param.liftMultiplier} to part {part.name}");
+    }
+
+    private void ApplyTurbojetModifiers(FlightControlParam param, UnitPart part)
+    {
+        Turbojet engine = part.GetComponent<Turbojet>();
+        if (engine == null)
+            return;
+
+        var se = part.gameObject.GetComponent<SuperEngine>();
+
+        if (se == null)
+        {
+            engine.maxThrust *= param.thrustMultiplier;
+            se = part.gameObject.AddComponent<SuperEngine>();
+            se.thrustMultiplier = param.thrustMultiplier;
+        }
+        else
+        {
+            engine.maxThrust /= se.thrustMultiplier;
+            engine.maxThrust *= param.thrustMultiplier;
+            se.thrustMultiplier = param.thrustMultiplier;
+        }
+
+        engine.thrustVectoringMaxAirspeed = param.tvcSpeedLimiter;
+
+        float tvcRoll = engine.name.Contains("_R") ? -param.tvcRoll : param.tvcRoll;
+        engine.thrustVectoring = new Vector3(param.tvcPitch, param.tvcYaw, tvcRoll);
+
+        Logger.LogInfo($"Applied thrust multiplier {param.thrustMultiplier} to engine {engine.name}");
+    }
+
+    private void ApplyPropFanModifiers(FlightControlParam param, UnitPart part)
+    {
+        PropFan propfan = part.GetComponent<PropFan>();
+        if (propfan == null)
+            return;
+
+        var se = part.gameObject.GetComponent<SuperEngine>();
+
+        if (se == null)
+        {
+            propfan.nominalPower *= param.thrustMultiplier;
+            se = part.gameObject.AddComponent<SuperEngine>();
+            se.thrustMultiplier = param.thrustMultiplier;
+        }
+        else
+        {
+            propfan.nominalPower /= se.thrustMultiplier;
+            propfan.nominalPower *= param.thrustMultiplier;
+            se.thrustMultiplier = param.thrustMultiplier;
+        }
+
+        Logger.LogInfo($"Applied thrust multiplier {param.thrustMultiplier} to propfan {propfan.name}");
+    }
+
+    private void ApplyConstantSpeedPropModifiers(FlightControlParam param, UnitPart part)
+    {
+        ConstantSpeedProp csp = part.GetComponent<ConstantSpeedProp>();
+        if (csp == null)
+            return;
+
+        var se = part.gameObject.GetComponent<SuperEngine>();
+
+        if (se == null)
+        {
+            csp.nominalPower *= param.thrustMultiplier;
+            csp.propTorqueLimit *= param.thrustMultiplier;
+            csp.propStrikeTolerance *= param.thrustMultiplier;
+            csp.bladeEfficiency = 1.0f;
+            csp.bladeDrag = 0.0f;
+            csp.rpmLimit *= param.thrustMultiplier;
+
+            se = part.gameObject.AddComponent<SuperEngine>();
+            se.thrustMultiplier = param.thrustMultiplier;
+        }
+        else
+        {
+            csp.nominalPower /= se.thrustMultiplier;
+            csp.nominalPower *= param.thrustMultiplier;
+
+            csp.propTorqueLimit /= se.thrustMultiplier;
+            csp.propTorqueLimit *= param.thrustMultiplier;
+
+            csp.propStrikeTolerance /= se.thrustMultiplier;
+            csp.propStrikeTolerance *= param.thrustMultiplier;
+
+            csp.rpmLimit /= se.thrustMultiplier;
+            csp.rpmLimit *= param.thrustMultiplier;
+
+            se.thrustMultiplier = param.thrustMultiplier;
+        }
+
+        Logger.LogInfo($"Applied thrust multiplier {param.thrustMultiplier} to csprop {csp.name}");
+    }
+    private void ApplyTurbineModifiers(FlightControlParam param, UnitPart part)
+    {
+        TurbineEngine turbine = part.GetComponent<TurbineEngine>();
+        if (turbine == null)
+            return;
+
+        var st = part.gameObject.GetComponent<Superturbine>();
+
+        if (st == null)
+        {
+            turbine.maxPower *= param.thrustMultiplier;
+            st = part.gameObject.AddComponent<Superturbine>();
+            st.thrustMultiplier = param.thrustMultiplier;
+        }
+        else
+        {
+            turbine.maxPower /= st.thrustMultiplier;
+            turbine.maxPower *= param.thrustMultiplier;
+            st.thrustMultiplier = param.thrustMultiplier;
+        }
+
+        Logger.LogInfo($"Applied thrust multiplier {param.thrustMultiplier} to turbine {turbine.name}");
+    }
+
+    private void ApplyUnbreakableJoints(Aircraft ac)
+    {
+        var prefab = ac.definition?.unitPrefab;
+        if (prefab == null)
+        {
+            Logger.LogWarning("unitPrefab is null — cannot apply unBreakableJoint");
+            return;
+        }
+
+        var prefabAircraft = prefab.gameObject.GetComponent<Aircraft>();
+        if (prefabAircraft == null)
+        {
+            Logger.LogWarning("Prefab has no Aircraft component — cannot apply unBreakableJoint");
+            return;
+        }
+
+        foreach (UnitPart part in prefabAircraft.GetComponentsInChildren<UnitPart>())
+        {
+            if (part is not AeroPart aero || aero.joints == null)
+                continue;
+
+            foreach (var joint in aero.joints)
+            {
+                if (joint == null)
+                    continue;
+
+                joint.breakForce = float.MaxValue;
+                joint.breakTorque = float.MaxValue;
+            }
+        }
+    }
+
+    private void applyAircraftModParameters(FlightControlParam param, Aircraft ac)
+    {
+        if (ac == null)
+            return;
+        foreach (UnitPart part in ac.partLookup)
+        {
+            if (part == null || part.gameObject == null)
+                continue;
+
+            ApplyWingModifiers(param, part);
+            ApplyTurbojetModifiers(param, part);
+            ApplyPropFanModifiers(param, part);
+            ApplyConstantSpeedPropModifiers(param, part);
+            ApplyTurbineModifiers(param, part);
+        }
+        if (param.unBreakableJoint)
+            ApplyUnbreakableJoints(ac);
     }
 
     public FlightControlParam GetFCS(GameObject Target)
@@ -337,7 +477,7 @@ public class FlightControlPatch : BaseUnityPlugin, FCSModifier, VectorEngineUnlo
     public int SetFCSToDefault(GameObject Target)
     {
         if (!done) throw new InvalidOperationException("NuclearOptionFCSFrameworkMOD API has not been initialized yet.");
-        SetFCS(GetDefaultFCS(Target), Target);
+        SetFCS(GetDefaultFCS(Target), Target.GetComponent<ControlsFilter>().aircraft);
         return 0;
     }
 
@@ -346,34 +486,7 @@ public class FlightControlPatch : BaseUnityPlugin, FCSModifier, VectorEngineUnlo
         return done;
     }
 
-    public void SetVectoringMaxAirSpeed_Global(AircraftType Aircraft, float vel)
-    {
-        if (!done) throw new InvalidOperationException("NuclearOptionFCSFrameworkMOD API has not been initialized yet.");
-        if (Aircraft == AircraftType.FS12)
-        {
-            SetVector(Engine_FS12, vel);
-        }
-        else if (Aircraft == AircraftType.KR67)
-        {
-            SetVector(Engine_KR67_L, vel);
-            SetVector(Engine_KR67_R, vel);
-        }
-        else
-        {
-            throw new InvalidOperationException("Target do not have a vector engine");
-        }
-    }
 
-    public void SetVectoringMaxAirSpeed(GameObject Target, float vel)
-    {
-        if (!done) throw new InvalidOperationException("NuclearOptionFCSFrameworkMOD API has not been initialized yet.");
-        var engine = Target.GetComponent<Turbojet>();
-        if (engine == null)
-        {
-            throw new NullReferenceException("Target do not have a Engine Component");
-        }
-        SetVector(engine, vel);
-    }
 }
 
 

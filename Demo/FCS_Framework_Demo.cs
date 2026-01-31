@@ -1,26 +1,20 @@
 ﻿using BepInEx;
 using BepInEx.Configuration;
-using BepInEx.Logging;
-using ConfigurationManager;
-using FCSAPI;
 using HarmonyLib;
 using Newtonsoft.Json;
+using NuclearOptionFCSDemo.API;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.IO;
-using System.Linq;
-using System.Text;
-using Unity.Collections;
 using UnityEngine;
-namespace FCSSets;
+namespace NuclearOptionFCSDemo.Demo;
 
 [BepInPlugin("FCS_FrameworkMOD_Demo", "FCS_FrameworkMOD_Demo", "0.0.5")]
 //[BepInDependency("NuclearOptionFCSFrameworkMOD", BepInDependency.DependencyFlags.HardDependency)]
 public class FCSSets : BaseUnityPlugin
 {
     private static string ConfigPath => Path.Combine(Paths.PluginPath, "CustomFCS", "FlightControlConfig.json");
-    private static Dictionary<string, FlightControlParam> LoadedParams = new();
+    private static Dictionary<string, FlightControlParam> LoadedParams = [];
     private bool done = false;
 
     private ConfigEntry<KeyboardShortcut> ShowCounter { get; set; }
@@ -28,33 +22,34 @@ public class FCSSets : BaseUnityPlugin
 
     void Update()
     {
-        if (done && !(Input.GetKey(KeyCode.LeftControl) && Input.GetKey(KeyCode.L))) return;
-        var api = FCSAPI.FCSPatch_API.Instance;
-        var VEUapi = FCSAPI.FCSPatch_API.VEU_Instance;
-        Logger.LogInfo($"API assembly seen: {typeof(FCSAPI.FCSPatch_API).Assembly.FullName}");
-        if (api != null)
+        if (!done)
         {
-            if (!api.IsReady()) return;
-            Logger.LogInfo($"FCSPatch API Ready");
-            LoadConfig();
+            var api = FCSPatch_API.Instance;
+            Logger.LogInfo($"API assembly seen: {typeof(FCSPatch_API).Assembly.FullName}");
+            if (api != null)
+            {
+                if (!api.IsReady()) return;
+                Logger.LogInfo($"FCSPatch API Ready");
+                LoadConfig();
 
-            api.SetFCS_Global(LoadedParams["CI22"], AircraftType.CI22);
-            api.SetFCS_Global(LoadedParams["TA30"], AircraftType.TA30);
-            api.SetFCS_Global(LoadedParams["A19"], AircraftType.A19);
-            api.SetFCS_Global(LoadedParams["FS12"], AircraftType.FS12);
-            api.SetFCS_Global(LoadedParams["FS20"], AircraftType.FS20);
-            api.SetFCS_Global(LoadedParams["KR67"], AircraftType.KR67);
-            api.SetFCS_Global(LoadedParams["EW25"], AircraftType.EW25);
-            api.SetFCS_Global(LoadedParams["SFB81"], AircraftType.SFB81);
-            //VEUapi.SetVectoringMaxAirSpeed_Global(AircraftType.FS12, api.);
-            //VEUapi.SetVectoringMaxAirSpeed_Global(AircraftType.KR67, 9999f);
-            done = true;
-        }
-        else
-        {
-            Logger.LogInfo($"Waiting for FCPatch API");
-        }
 
+                //api.SetFCS_Global(LoadedParams["CI22"], AircraftType.CI22);
+                //api.SetFCS_Global(LoadedParams["TA30"], AircraftType.TA30);
+                //api.SetFCS_Global(LoadedParams["A19"], AircraftType.A19);
+                //api.SetFCS_Global(LoadedParams["FS12"], AircraftType.FS12);
+                //api.SetFCS_Global(LoadedParams["FS20"], AircraftType.FS20);
+                //api.SetFCS_Global(LoadedParams["KR67"], AircraftType.KR67);
+                //api.SetFCS_Global(LoadedParams["EW25"], AircraftType.EW25);
+                //api.SetFCS_Global(LoadedParams["SFB81"], AircraftType.SFB81);
+                //VEUapi.SetVectoringMaxAirSpeed_Global(AircraftType.FS12, api.);
+                //VEUapi.SetVectoringMaxAirSpeed_Global(AircraftType.KR67, 9999f);
+                done = true;
+            }
+            else
+            {
+                Logger.LogInfo($"Waiting for FCPatch API");
+            }
+        }
     }
     public class ModifyHelper : MonoBehaviour
     {
@@ -63,49 +58,105 @@ public class FCSSets : BaseUnityPlugin
         {
             playerAircraft = ac;
         }
+        private bool HelicopterMode = false;
         void Update()
         {
-            if (!(Input.GetKey(KeyCode.LeftControl) && Input.GetKey(KeyCode.L))) return;
-            var api = FCSAPI.FCSPatch_API.Instance;
-            LoadConfig();
-            if (playerAircraft.definition.code == "CI-22")
+            if (Input.GetKey(KeyCode.LeftControl) && Input.GetKey(KeyCode.L))
             {
-                api.SetFCS(LoadedParams["CI22"], playerAircraft.cockpit.gameObject);
+                var api = FCSPatch_API.Instance;
+                LoadConfig();
+                if (playerAircraft.definition.code == "CI-22")
+                {
+                    api.SetFCS(LoadedParams["CI22"], playerAircraft);
+                }
+                else if (playerAircraft.definition.code == "FS-12")
+                {
+                    api.SetFCS(LoadedParams["FS12"], playerAircraft);
+                }
+                else if (playerAircraft.definition.code == "KR-67")
+                {
+                    api.SetFCS(LoadedParams["KR67"], playerAircraft);
+                }
+                else if (playerAircraft.definition.code == "T/A-30")
+                {
+                    api.SetFCS(LoadedParams["TA30"], playerAircraft);
+                }
+                else if (playerAircraft.definition.code == "SFB-81")
+                {
+                    api.SetFCS(LoadedParams["SFB81"], playerAircraft);
+                }
+                else if (playerAircraft.definition.code == "FS-20")
+                {
+                    api.SetFCS(LoadedParams["FS20"], playerAircraft);
+                }
+                else if (playerAircraft.definition.code == "EW-25")
+                {
+                    api.SetFCS(LoadedParams["EW25"], playerAircraft);
+                }
+                else if (playerAircraft.definition.code == "A-19")
+                {
+                    api.SetFCS(LoadedParams["A19"], playerAircraft);
+                }
             }
-            else if (playerAircraft.definition.code == "FS-12")
+
+            if (Input.GetKey(KeyCode.LeftControl) && Input.GetKey(KeyCode.LeftAlt) && Input.GetKey(KeyCode.H))
             {
-                api.SetFCS(LoadedParams["FS12"], playerAircraft.cockpit.gameObject);
+                foreach (UnitPart part in playerAircraft.partLookup)
+                {
+                    if (part is AeroPart aeroPart)
+                    {
+                        aeroPart.hitPoints = 1000;
+                    }
+                }
             }
-            else if (playerAircraft.definition.code == "KR-67")
+            if (Input.GetKey(KeyCode.LeftControl) && Input.GetKey(KeyCode.LeftAlt) && Input.GetKey(KeyCode.J) && !HelicopterMode)
             {
-                api.SetFCS(LoadedParams["KR67"], playerAircraft.cockpit.gameObject);
-            }
-            else if (playerAircraft.definition.code == "T/A-30")
-            {
-                api.SetFCS(LoadedParams["TA30"], playerAircraft.cockpit.gameObject);
-            }
-            else if (playerAircraft.definition.code == "SFB-81")
-            {
-                api.SetFCS(LoadedParams["SFB81"], playerAircraft.cockpit.gameObject);
-            }
-            else if (playerAircraft.definition.code == "FS-20")
-            {
-                api.SetFCS(LoadedParams["FS20"], playerAircraft.cockpit.gameObject);
-            }
-            else if (playerAircraft.definition.code == "EW-25")
-            {
-                api.SetFCS(LoadedParams["EW25"], playerAircraft.cockpit.gameObject);
-            }
-            else if (playerAircraft.definition.code == "A-19")
-            {
-                api.SetFCS(LoadedParams["A19"], playerAircraft.cockpit.gameObject);
+                foreach (TurbineEngine turbine in playerAircraft.GetComponentsInChildren<TurbineEngine>())
+                {
+                    turbine.maxPower *= 2;
+                }
+                foreach (RotorShaft rotor in playerAircraft.GetComponentsInChildren<RotorShaft>())
+                {
+                    rotor.nominalPower *= 4f;
+                    rotor.torqueLimit = float.MaxValue;
+                    rotor.VRSThreshold = float.MaxValue;
+                    rotor.dragBase = 0f;
+                    rotor.angularSpeedNominal *= 1.3f;
+                    rotor.angularSpeedLimit *= 1.3f;
+                    rotor.shaftFriction = 0f;
+                    rotor.stallAngle = 90f;
+                    rotor.nominalRPM *= 1.3f;
+                }
+                foreach (DuctedFan fan in playerAircraft.GetComponentsInChildren<DuctedFan>())
+                {
+                    fan.maxPower *= 2;
+                }
+                foreach (UnitPart part in playerAircraft.definition.unitPrefab.gameObject.GetComponent<Aircraft>().partLookup)
+                {
+                    if (part is not AeroPart)
+                    {
+                        return;
+                    }
+                    PartJoint[] partJoints = (part as AeroPart).joints;
+                    if (partJoints == null)
+                    {
+                        return;
+                    }
+                    foreach (PartJoint partjoint in partJoints)
+                    {
+                        partjoint.breakForce = float.MaxValue;
+                        partjoint.breakTorque = float.MaxValue;
+                    }
+                }
+                HelicopterMode = true;
+                
             }
         }
     }
 
     [HarmonyPatch(typeof(PilotPlayerState))]
     [HarmonyPatch("FixedUpdateState")]
-    [HarmonyPatch(new Type[] { typeof(Pilot) })]
+    [HarmonyPatch([typeof(Pilot)])]
     public static class PilotPlayerState_FixedUpdateState_Patch
     {
         public static void Prefix(Pilot pilot)
@@ -123,7 +174,7 @@ public class FCSSets : BaseUnityPlugin
 
     private static void LoadConfig()
     {
-        var api = FCSAPI.FCSPatch_API.Instance;
+        var api = FCSPatch_API.Instance;
         try
         {
             if (!File.Exists(ConfigPath))
@@ -152,6 +203,36 @@ public class FCSSets : BaseUnityPlugin
         catch (Exception ex)
         {
             Debug.LogError($"[FlightControlMod] Failed to loaded profile: {ex}");
+        }
+    }
+    /// <summary>
+    /// things like part detaching on overload are disabled to prevent issues with modified flight control settings, kind of a hacky fix.
+    /// </summary>
+    [HarmonyPatch(typeof(AeroPart), nameof(AeroPart.CheckAttachment))]
+    public static class Patch_CheckAttachment_Disable
+    {
+        static bool Prefix()
+        {
+            // Skip the entire method — nothing inside will run.
+            return false;
+        }
+    }
+    [HarmonyPatch(typeof(Turbojet), nameof(Turbojet.KillEngine))]
+    public static class Patch_KillEngine_Disable
+    {
+        static bool Prefix()
+        {
+            // Skip the entire method — nothing inside will run.
+            return false;
+        }
+    }
+    [HarmonyPatch(typeof(PropFan), nameof(PropFan.PropFan_OnPropStrike))]
+    public static class Patch_PropFan_OnPropStrike_Disable
+    {
+        static bool Prefix()
+        {
+            // Skip the entire method — nothing inside will run.
+            return false;
         }
     }
 
