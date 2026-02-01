@@ -47,6 +47,10 @@ public class FlightControlPatch : BaseUnityPlugin, IFCSModifier
     {
         public float thrustMultiplier = 1.0f;
     }
+    public class SuperGear : MonoBehaviour
+    {
+        public float liftMultiplier = 1.0f;
+    }
     private bool done = false;
     void Awake()
     {
@@ -268,6 +272,9 @@ public class FlightControlPatch : BaseUnityPlugin, IFCSModifier
         }
 
         engine.thrustVectoringMaxAirspeed = param.tvcSpeedLimiter;
+        engine.maxSpeed = param.tvcSpeedLimiter;
+        engine.minDensity = 0;
+        engine.minRPM = 0;
 
         float tvcRoll = engine.name.Contains("_R") ? -param.tvcRoll : param.tvcRoll;
         engine.thrustVectoring = new Vector3(param.tvcPitch, param.tvcYaw, tvcRoll);
@@ -392,6 +399,47 @@ public class FlightControlPatch : BaseUnityPlugin, IFCSModifier
                 joint.breakTorque = float.MaxValue;
             }
         }
+    }
+
+    private void ApplyLandingGearModifiers(FlightControlParam param, Aircraft ac)
+    {
+        if (ac.cockpit == null)
+            return;
+
+        LandingGear[] gears = ac.cockpit.gameObject.GetComponentsInChildren<LandingGear>();
+        if (gears == null || gears.Length == 0)
+            return;
+
+        foreach (var gear in gears)
+        {
+            if (gear == null)
+                continue;
+            var sg = gear.gameObject.GetComponent<SuperGear>();
+
+            if (sg == null)
+            {
+                gear.maxCompression *= Mathf.Clamp(param.liftMultiplier, 1, 2);
+                gear.springRate *= Mathf.Clamp(param.liftMultiplier, 1, 2);
+                gear.wheelRadius *= Mathf.Clamp(param.liftMultiplier,1, 2);
+                gear.contactArea *= Mathf.Clamp(param.liftMultiplier,1, 2);
+                gear.gameObject.AddComponent<SuperGear>().liftMultiplier = param.liftMultiplier;
+            }
+            else
+            {
+                gear.maxCompression /= Mathf.Clamp(sg.liftMultiplier, 1, 2);
+                gear.maxCompression *= Mathf.Clamp(param.liftMultiplier, 1, 2);
+                gear.springRate /= Mathf.Clamp(sg.liftMultiplier, 1, 2);
+                gear.springRate *= Mathf.Clamp(param.liftMultiplier, 1, 2);
+                gear.wheelRadius /= Mathf.Clamp(sg.liftMultiplier, 1, 2);
+                gear.wheelRadius *= Mathf.Clamp(param.liftMultiplier, 1, 2);
+                gear.contactArea /= Mathf.Clamp(sg.liftMultiplier, 1, 2);
+                gear.contactArea *= Mathf.Clamp(param.liftMultiplier, 1, 2);
+                sg.liftMultiplier = param.liftMultiplier;
+            }
+
+        }
+
+        Logger.LogInfo($"Applied landing gear multiplier {param.liftMultiplier} to {gears.Length} gears");
     }
 
     private void applyAircraftModParameters(FlightControlParam param, Aircraft ac)
